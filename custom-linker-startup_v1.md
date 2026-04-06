@@ -87,7 +87,7 @@ void Reset_Handler(void) {
 
 No `SystemInit()`. No HAL. Just memory initialisation and a jump to `main()`.
 
-## Images
+## https://raw.githubusercontent.com/jbvalle/blog_posts/refs/heads/main/assets
 
 Drop your schematic screenshots or scope captures next to the markdown file and reference them like this:
 
