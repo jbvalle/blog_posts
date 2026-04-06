@@ -69,7 +69,7 @@ The ARM GNU Toolchain is a collection of these tools specialized for ARM - Chips
 
 There are multiple ways for debugging and flashing the finished executable onto the chip, however, in this example, the free open-source on-chip debugger OpenOCD is used. The following flow diagram illustrates how OpenOCD flashes and debugs the executable on the chip.
 
-![OpenOCD flashing flow](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/arm-gnu-toolchain-flashing.png)
+![OpenOCD flashing flow](images/arm-gnu-toolchain-flashing.png)
 
 OpenOCD needs scripts for the target (ie. microcontroller) and interface (ie. debugger) because it uses an embedded debugger to communicate with the target device. The debugger needs to know how to interface with the target device in order to properly communicate with it. The scripts provide this information to the debugger. The following code will later be used in order to debug and flash the program onto the microcontroller.
 
@@ -86,17 +86,17 @@ The linker itself is a program integrated in the GNU Compiler Collection (GCC), 
 
 A Linker Script contains multiple sections, the memory section the define various memories in the systems and their attributes. The attribute of a memory includes its size, its starting address, its type and its reading permissions. The actual documentation for those sections can be looked up in the official GNU Documentation. A snippet of the documentation describing the memory section is provided in the following image.
 
-![GNU Linker Documentation of Memory Section](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/memory_sec_doc.png)
+![GNU Linker Documentation of Memory Section](images/memory_sec_doc.png)
 *GNU Linker Documentation of Memory Section*
 
 The regions sections defines the various regions in the memories. A region is a contiguous block of memory with a specific purpose. For example, a region may be created for the code, data or stack. This sections tell the linker how to link the various pieces of code and data together. A snippet of the documentation describing the regions section is provided in the following image.
 
-![GNU Linker Documentation of Region Section](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/regions_sec_doc.png)
+![GNU Linker Documentation of Region Section](images/regions_sec_doc.png)
 *GNU Linker Documentation of Region Section*
 
 ##### The following code contains the actual code of the linker script used in this example
 
-![Linker script memory section](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/Linker_script_memory.png)
+![Linker script memory section](images/Linker_script_memory.png)
 
 | Line(s) | Description |
 |---------|-------------|
@@ -104,7 +104,7 @@ The regions sections defines the various regions in the memories. A region is a 
 | [Line:4] | the top address of the stack, this is required by the manufacturer |
 | [Line:7] | as well as the actual memory section. This section defines that RAM memory has read \| write \| execute rights, with a starting address at 0x20000000 with a total size of 96KB. Additionally FLASH is defined to have read \| execute rights, with a starting address at 0x08000000 and a total size of 512KB. All these information is specific to the STM32F401RE microcontroller. |
 
-![Linker script sections](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/linker_script_sections.png)
+![Linker script sections](images/linker_script_sections.png)
 
 | Line(s) | Description |
 |---------|-------------|
@@ -144,20 +144,20 @@ One of the most common ways to reset an embedded system today is through the use
 
 ##### The following code contains the actual code of the linker script used in this example
 
-![Prototypes code](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/prototypes.png)
+![Prototypes code](images/prototypes.png)
 
 | Line(s) | Description |
 |---------|-------------|
 | [Line:2-7] | Here the symbol names taken from the linker script are initialized. These will later be used in the reset handler. |
 | [Line:10-20] | The prototypes used to call main as well as the interrupt handlers of the microcontroller are initialized. These are documented in Reference Manual of the STM32F401RE. If the Interrupt Handlers are not initialized with a customized Handler, a default handler will be called instead. |
 
-![Vector table code](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/vector_table.png)
+![Vector table code](images/vector_table.png)
 
 | Line(s) | Description |
 |---------|-------------|
 | [Line:2] | Here the array of function pointers are initialized using the section attribute. This will tell the compiler to place the array in the .isr_vector memory section in FLASH. |
 
-![Reset handler code](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/reset_handler.png)
+![Reset handler code](images/reset_handler.png)
 
 | Line(s) | Description |
 |---------|-------------|
@@ -175,7 +175,7 @@ A makefile is a file that contains a set of instructions that tell a computer ho
 
 > **Upcoming!** A new blog post explaining Makefiles will be published soon, stay tuned!
 
-![Makefile part 1](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/makefile_1.png)
+![Makefile part 1](images/makefile_1.png)
 
 | Line(s) | Description |
 |---------|-------------|
@@ -185,7 +185,7 @@ A makefile is a file that contains a set of instructions that tell a computer ho
 | [Line:14-15] | Here the values assigned to the SRC macros are substituted with a .o exten using the patsubst feature. Furthermore, its file paths have been changed with that of the directory make for object files. This also is specific to this project. |
 | [Line:16] | Lastly the macro LD is used to hold the name of our linker script |
 
-![Makefile part 2](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/makefile_2.png)
+![Makefile part 2](images/makefile_2.png)
 
 | Line(s) | Description |
 |---------|-------------|
@@ -194,7 +194,7 @@ A makefile is a file that contains a set of instructions that tell a computer ho
 | [Line:21] | These are the linker flags. -nostdlib means no standard library functions are used that need to be linked. -T tells the linker where to search for the linker script. -Wl, tells the linker that linker options are being passed. -Map is used to generate a map file of the executable which is very helpful for debugging purposes. |
 | [Line:24-25] | These are the paths to the openOCD scripts used to tell openOCD how to connect and communicate with the on chip ST-Link V2 debugger, as well as the debugger unit on the STM32F401RE. |
 
-![Makefile part 3](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/makefile_3.png)
+![Makefile part 3](images/makefile_3.png)
 
 | Line(s) | Description |
 |---------|-------------|
@@ -203,7 +203,7 @@ A makefile is a file that contains a set of instructions that tell a computer ho
 | [Line:32-36] | These are makefile rules, telling make to generate object files using the c source files. If the Object file directory is not present, the "mkobj" target is called which will create a directory needed for compilation |
 | [Line:38-39] | This makefile rule, tells make how to generate the target using object file, similarly to mkobj it will call mkdeb if DEB_DIR is not available |
 
-![Makefile part 4](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/makefile_4.png)
+![Makefile part 4](images/makefile_4.png)
 
 | Line(s) | Description |
 |---------|-------------|
@@ -217,7 +217,7 @@ If you're working on register level programming for an embedded system, one thin
 
 A peripheral can be defined using a struct with each of its registers initialized as the struct's members. The following code is the struct data structure of the STM32F401RE GPIO Peripheral.
 
-![GPIO struct](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/gpio_struct.png)
+![GPIO struct](images/gpio_struct.png)
 
 Now that the registers have been initialized, an instance of that struct can be assigned a fixed address from the system's memory, defined in the reference manual. A possible method is to instantiate a struct pointer which is then assigned an address, as illustrated by the following code:
 
@@ -235,7 +235,7 @@ This code instantiates struct pointers with the pointer being constant, meaning 
 
 ##### The following code contains the actual code of the startup file used in this example:
 
-![Simple blink project main](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/simple_blink_proj_main.png)
+![Simple blink project main](images/simple_blink_proj_main.png)
 
 | Line(s) | Description |
 |---------|-------------|
