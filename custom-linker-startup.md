@@ -62,7 +62,7 @@ The GNU Toolchain is a collection of programming tools produced by the GNU Proje
 
 The ARM GNU Toolchain is a collection of these tools specialized for ARM - Chips. The flow diagram below illustrates how the ARM-GNU Toolchain compiles source files into a finished executable.
 
-![ARM GNU Toolchain flow](https://github.com/jbvalle/jbvalle.github.io/tree/main/images/arm-gnu-toolchain.png)
+![ARM GNU Toolchain flow](images/arm-gnu-toolchain.png)
 
 <a id="OpenOCD"></a>
 ## OpenOCD
