@@ -1,95 +1,174 @@
 # LVGL Calendar Display
 
-*An embedded Linux calendar interface with live Google Calendar synchronisation — one small display, current information, and no app to open.*
+*Technical walkthrough of an embedded Linux agenda display using LVGL, direct SPI/GPIO control, and Google Calendar ICS synchronisation.*
 
 ---
 
 ## Overview
 
-The best embedded products usually make one task feel effortless. This project turns a Raspberry Pi and a compact 320 × 240 ILI9341 display into a dedicated agenda screen that keeps the next important events visible at a glance.
+This project is a dedicated 320 × 240 agenda display for embedded Linux. It retrieves a Google Calendar ICS feed, evaluates the relevant events, and renders the current agenda on an ILI9341 TFT display.
 
-It is designed as a small, focused Linux user interface rather than a scaled-down desktop application. The screen shows the current date, connection state, and up to three current or upcoming calendar items. There are no menus to navigate and no touch layer to maintain — just the information that matters, available when it is needed.
+The focus was not only on making a graphical interface, but on integrating the complete embedded system: Linux device interfaces, a custom display driver, LVGL rendering, network communication, calendar parsing, recurrence handling, and service deployment.
 
-For a desk, workshop, meeting room, or shared workspace, this kind of device has a simple purpose: reduce the friction between planning something and seeing it.
-
----
-
-## Project at a Glance
-
-| Area | Implementation |
-|------|----------------|
-| Platform | Raspberry Pi running 64-bit Raspberry Pi OS |
-| Display | 320 × 240 ILI9341 TFT over SPI |
-| User interface | LVGL 9.5, rendered in RGB565 |
-| Application | C11 with CMake build configuration |
-| Calendar source | Public Google Calendar ICS feed, configurable at runtime |
-| Refresh strategy | Background update every 60 seconds |
-| Operation | Optional systemd service for start-at-boot |
+The reference platform is a Raspberry Pi running 64-bit Raspberry Pi OS. The application itself is written so that its SPI device, GPIO wiring, display orientation, backlight, and calendar URL can be configured at runtime.
 
 ---
 
-## The Goal: Make Information Visible
+## System Architecture
 
-A calendar is useful only if people actually look at it. Phone notifications are easy to dismiss, and opening a browser or app adds a small interruption every time. The aim here was different: create a quiet display that communicates the next thing to do without demanding attention.
+```text
+Google Calendar ICS feed
+          │
+          ▼
+libcurl worker thread ──► ICS parser + recurrence expansion
+          │                         │
+          │                   agenda snapshot
+          ▼                         │
+     connection state ◄─────────────┘
+          │
+          ▼
+LVGL UI thread ──► partial RGB565 render buffer ──► ILI9341 SPI display
+```
 
-The interface is intentionally small and direct. A clean heading, today’s date, a compact sync status, and three agenda cards give the screen a clear visual hierarchy. Events that are currently in progress receive a distinct accent, while upcoming entries remain easy to scan from a short distance.
-
-This approach is practical for customers and stakeholders because it keeps the experience understandable. The device does not need a manual before it becomes useful.
-
----
-
-## From Calendar Feed to Display
-
-The reference configuration fetches a public Google Calendar ICS feed using libcurl. Downloading happens in a worker thread, so a slow network request never stops the user interface from updating. Once a new feed has been processed, the latest agenda is passed to the LVGL view for rendering.
-
-| Step | What happens |
-|------|--------------|
-| 1. Fetch | The public ICS feed is retrieved in the background. |
-| 2. Parse | Events are read from the calendar data, including folded lines and escaped text. |
-| 3. Expand | One-off and common recurring events are evaluated for the upcoming agenda. |
-| 4. Select | The display keeps the most relevant current or upcoming three items within a 45-day horizon. |
-| 5. Present | The UI refreshes while preserving a clear connection and sync status. |
-
-The parser accounts for all-day events as well as common daily, weekly, monthly, and yearly recurrence rules. It also respects exceptions and modified instances in recurring series. This is important because calendar data is rarely as simple as a list of one-time appointments.
+The worker thread never modifies LVGL objects. It downloads and parses calendar data, then publishes a protected agenda snapshot. The main thread reads that snapshot, updates the screen state, and runs the LVGL timer handler. Keeping rendering and network activity separate prevents a slow request from blocking the interface.
 
 ---
 
-## Reliability Is Part of the Interface
+## Software Stack
 
-An embedded display should remain useful when the network is not perfect. Before the first successful connection, the screen clearly shows that the calendar is unavailable. After a successful update, the last valid agenda remains visible if a later refresh fails, while the device continues retrying automatically.
+| Layer | Technology | Role |
+|------|------------|------|
+| Operating system | Raspberry Pi OS 64-bit / Embedded Linux | Provides SPI, GPIO, networking, and systemd services |
+| Application language | C11 | Main application, parser, UI, and hardware abstraction |
+| UI framework | LVGL 9.5 | Object-based UI layout and partial rendering |
+| Display transport | Linux spidev + GPIO character-device v2 API | ILI9341 command/data transfers, reset, and backlight control |
+| Network client | libcurl | ICS download with timeout and response-size limit |
+| Build system | CMake + FetchContent | Reproducible build with a pinned LVGL release |
+| Runtime service | systemd | Starts after network availability and restarts on failure |
 
-The UI exposes three understandable states: connecting, synced, and offline. This provides useful feedback without filling the display with technical detail. A short request timeout and bounded download size keep the network operation controlled, while the display loop remains responsive throughout.
-
----
-
-## Calendar Data and Privacy
-
-The reference implementation uses a public Google Calendar ICS feed, which keeps the integration lightweight and removes the need to store Google credentials on the device. A public calendar URL should be treated like a secret link: anyone who obtains it can read the events it exposes.
-
-For a customer deployment, the same display layer can use a deliberately scoped calendar, a private integration service, or another approved data source. This makes the product concept flexible while keeping the data-handling decision visible from the start.
-
----
-
-## Hardware and Display Integration
-
-The ILI9341 display is driven directly through Linux SPI and GPIO interfaces. The application initializes the controller, configures the display orientation, and transfers only the parts of the frame that LVGL needs to redraw. Pixel data is handled in RGB565 format, which fits the display hardware and keeps the system lightweight.
-
-This project intentionally does not open or poll the optional touch controller. Removing input from the scope makes the device more reliable for its intended use: a read-only status display that starts, updates, and recovers without interaction.
-
-The hardware configuration can be adapted at runtime for a different SPI device, GPIO wiring, display rotation, backlight behaviour, or calendar URL. That makes the core application reusable instead of being locked to one desk setup.
+The CMake configuration fetches LVGL version 9.5.0 explicitly, links `CURL::libcurl` and `Threads::Threads`, enables C11, and uses compiler warnings. This keeps the build self-contained instead of relying on an unpinned framework version installed on the target.
 
 ---
 
-## Ready for Everyday Use
+## Display Driver and Linux Hardware Access
 
-The project uses CMake with a pinned LVGL release for repeatable builds. An example systemd unit starts the display only after networking is available and restarts it if it exits unexpectedly. This is the difference between a successful prototype and something that can quietly run every day.
+The display layer is implemented directly in C for an ILI9341 controller. The driver opens the SPI device, configures SPI mode 0, 8-bit words, and the requested clock speed, then performs the controller initialisation sequence.
 
-The result is a compact embedded Linux product that brings together firmware-level hardware control, a modern graphical interface, networked data, and operational thinking in one focused system.
+| Interface | Default configuration | Purpose |
+|-----------|-----------------------|---------|
+| SPI | `/dev/spidev0.0`, 32 MHz | Transfers ILI9341 commands and RGB565 pixel data |
+| D/C GPIO | BCM 25 | Selects command or data mode |
+| Reset GPIO | BCM 24 | Hardware reset of the display controller |
+| Backlight GPIO | BCM 18 | Enables the display backlight when connected |
+| Rotation | 90° | Uses the ILI9341 MADCTL register for landscape output |
+
+The GPIO implementation uses the modern Linux GPIO character-device v2 API rather than shell commands or a board-specific library. Pixel transfers are sent in bounded 4096-byte SPI chunks, and the driver verifies the requested display area before writing it. The display controller, wiring, rotation, SPI speed, and backlight can all be changed through command-line options.
+
+The optional touch controller is deliberately not opened. This is a display-only product, so avoiding unused touch polling reduces integration scope and keeps the runtime behaviour predictable.
 
 ---
 
-## Where This Can Go Next
+## LVGL Implementation
 
-The same architecture can be adapted beyond a personal calendar. With a different data source and screen layout, it can become a meeting-room schedule, production status panel, booking display, lab dashboard, or other small information appliance.
+LVGL is initialised after the hardware display is available. The application provides LVGL with the actual width and height reported by the hardware layer, a monotonic millisecond tick source, a single RGB565 draw buffer, and a custom flush callback.
 
-That is what makes projects like this interesting: the hardware is compact, but the product idea is flexible. If you are looking for a focused embedded interface that turns live information into something simple and useful, feel free to [get in touch](mailto:johnbryan.valle@j-techworks.net).
+```c
+static uint8_t draw_buffer[320 * DRAW_BUFFER_LINES * 2];
+
+lv_display_t *display = lv_display_create(hardware.width, hardware.height);
+lv_display_set_buffers(display, draw_buffer, NULL, sizeof(draw_buffer),
+                       LV_DISPLAY_RENDER_MODE_PARTIAL);
+lv_display_set_color_format(display, LV_COLOR_FORMAT_RGB565);
+lv_display_set_flush_cb(display, display_flush);
+```
+
+`DRAW_BUFFER_LINES` is set to 40. At 320 pixels wide and two bytes per RGB565 pixel, the application uses a 25,600-byte partial render buffer instead of allocating a full frame buffer. LVGL renders only the changed regions and calls the flush callback for each area.
+
+The flush callback performs the byte swap required by the ILI9341 data format, passes the rectangle to the SPI driver, swaps the buffer back for LVGL, and finally signals that the flush is complete. This is the bridge between a high-level LVGL object tree and the physical display controller.
+
+The LVGL configuration is intentionally small:
+
+```c
+#define LV_COLOR_DEPTH 16
+#define LV_FONT_MONTSERRAT_14 1
+#define LV_FONT_MONTSERRAT_16 1
+#define LV_FONT_MONTSERRAT_20 1
+```
+
+The UI is built from native LVGL objects: a root screen, heading and date labels, a connection-status indicator, and three reusable agenda-card structures. Each card contains a time box, day label, title, metadata label, and colour accent. Labels use clipped long-text mode so an overlong event title cannot disturb the layout.
+
+---
+
+## Google Calendar Integration and ICS Parsing
+
+The default calendar source is a public Google Calendar ICS URL. The URL can be replaced at runtime with `--calendar-url`, which allows the same firmware to be used with another compatible calendar source without recompiling.
+
+The client refreshes in a dedicated POSIX thread every 60 seconds. libcurl uses an 8-second request timeout and limits the response to 1 MiB before parsing. The parser handles:
+
+- Standard one-off `VEVENT` entries
+- Timed and all-day events
+- Folded ICS lines and escaped calendar text
+- Daily, weekly, monthly, and yearly recurrence rules
+- Recurrence exceptions (`EXDATE`) and modified recurring instances (`RECURRENCE-ID`)
+- Current events as well as upcoming events within a 45-day horizon
+
+Only the three most relevant events are retained for the display. This keeps memory use bounded and matches the available screen space. Timed events are formatted in the system timezone; the target system can therefore be configured with the appropriate local timezone, such as `Europe/Vienna`.
+
+---
+
+## UI State Handling
+
+The display communicates the state of the data source without making the operator interpret debug messages.
+
+| State | UI behaviour |
+|-------|--------------|
+| First request in progress | `CONNECTING` status with a loading message |
+| Successful refresh | Timestamped sync state and next agenda entries |
+| Refresh in progress after a success | Existing agenda stays visible while the status shows `SYNCING` |
+| Refresh failure after a success | Last valid agenda remains on screen and status changes to `OFFLINE` |
+| No upcoming items | A dedicated empty state for the next 45 days |
+
+An event currently in progress is highlighted and shown as `NOW`. This is a small detail, but it turns the UI from a static schedule into a live status display.
+
+---
+
+## Build and Deployment
+
+The project is built with CMake. On first configuration, CMake downloads the pinned LVGL source; later builds reuse the local dependency.
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j"$(nproc)"
+./build/spi_calendar --speed 16000000
+```
+
+An example systemd unit is included for unattended operation. It waits for `network-online.target`, runs the application as a user in the `spi` and `gpio` groups, and uses `Restart=on-failure` to recover from an unexpected exit.
+
+```ini
+[Unit]
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+SupplementaryGroups=spi gpio
+ExecStart=/home/pi/003_calender/build/spi_calendar --speed 16000000
+Restart=on-failure
+```
+
+The lower initial SPI speed is useful for first hardware bring-up. After confirming display reliability, the standard 32 MHz configuration can be used.
+
+---
+
+## Engineering Scope Demonstrated
+
+This project demonstrates the complete path from a connected data source to a deployed embedded user interface:
+
+- Embedded Linux device access using SPI and GPIO APIs
+- Low-level display controller initialisation and RGB565 pixel transfer
+- LVGL display-port integration and memory-conscious partial rendering
+- C-based UI composition, styling, clipping, and live state updates
+- Threaded network communication with safe hand-off to the UI thread
+- ICS parsing, recurrence expansion, exception handling, and local-time formatting
+- Reproducible CMake builds and systemd-based deployment
+
+The reference configuration uses a public ICS link, which should be treated as a secret URL because anyone who obtains it can read the events it exposes. For a customer deployment, the display architecture can instead be connected to a scoped calendar, private backend, or another approved data source.
