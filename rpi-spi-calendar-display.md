@@ -1,3 +1,5 @@
+![3d Model Enclosure](assets/technical_drawing_pi_cal.png)
+
 # LVGL Calendar Display
 
 *Technical walkthrough of an embedded Linux agenda display using LVGL, direct SPI/GPIO control, and Google Calendar ICS synchronisation.*
