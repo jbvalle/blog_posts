@@ -1,4 +1,4 @@
-![3d Model Enclosure](assets/technical_drawing_pi_cal.png)
+![3d Model Enclosure](https://raw.githubusercontent.com/jbvalle/blog_posts/main/assets/technical_drawing_pi_cal.png)
 
 # LVGL Calendar Display
 
